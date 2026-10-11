@@ -1,7 +1,7 @@
-from test_cpu import cpu_test
-from test_ram import ram_test
-from test_disk import scan_storage
-from test_net import network_info
+from cpu_monitor import cpu_test
+from ram_monitor import ram_test
+from disk_monitor import scan_storage
+from network_monitor import network_info
 
 import keyboard
 
