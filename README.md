@@ -54,6 +54,9 @@ Install the dependencies:
 ```bash
 python -m pip install -r requirements.txt
 ```
+## Screenshot
+
+![PC Monitor dashboard](screenshots/dashboard.png)
 
 ## Usage
 
