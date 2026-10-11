@@ -33,8 +33,8 @@ Some features and keyboard controls may behave differently depending on the oper
 Clone the repository:
 
 ```bash
-git clone https://github.com/aleks360944/PC-Monitor.git
-cd PC-Monitor
+git clone https://github.com/aleks360944/PC-Monitor-System-Resource-Monitor.git
+cd PC-Monitor-System-Resource-Monitor
 ```
 
 Create and activate a virtual environment (optional but recommended):
