@@ -14,3 +14,14 @@ def cpu_test():
     print(f"Logical cores: {LOGICAL_CORES}\n") #выводим логические ядра
     
     print(f"CPU Usage: {usage}%\n\n")
+
+
+def get_cpu_data():
+    usage = psutil.cpu_percent(interval=0.1)
+
+    return {
+        "model": PROCESSOR_MODEL,
+        "physical_cores": PHYSICAL_CORES,
+        "logical_cores": LOGICAL_CORES,
+        "usage": usage,
+    }
