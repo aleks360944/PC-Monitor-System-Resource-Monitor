@@ -1,96 +1,115 @@
-﻿# PC Monitor
+# PC Monitor
 
-A lightweight, terminal-based system monitoring tool written in Python.
-
-PC Monitor provides a live overview of your computer's resources through a clean terminal dashboard powered by Rich.
+A lightweight, terminal-based system resource monitor written in Python. PC Monitor displays live system information in a dashboard powered by [Rich](https://github.com/Textualize/rich).
 
 ## Features
 
-- **CPU Monitoring** — processor information, core count, and CPU usage.
-- **Memory Monitoring** — total, available, and used RAM.
-- **Storage Monitoring** — disk capacity and usage information.
-- **Network Monitoring** — network interfaces, IP addresses, MAC addresses, and connection status.
-- **Live Dashboard** — a structured terminal interface with automatically refreshed system information.
-- **Usage History** — real-time CPU and RAM usage graphs.
-- **Keyboard Controls** — press `Q` to exit the dashboard.
+- **CPU monitoring** — processor information and current CPU usage.
+- **RAM monitoring** — total, available, and used memory.
+- **Storage monitoring** — disk capacity, free space, and usage for detected volumes.
+- **Network information** — available network interfaces, IP and MAC addresses, and connection details.
+- **Live terminal dashboard** — system information is refreshed while the application is running.
+- **Usage history** — live CPU and RAM graphs.
+- **System health checks** — identifies normal, warning, critical, and unavailable readings for CPU, RAM, and storage.
+- **Keyboard controls** — press `Q` to exit the dashboard.
 
-## Technologies
+### Health status thresholds
 
-- Python
-- [psutil](https://github.com/giampaolo/psutil) — system and process utilities.
-- [Rich](https://github.com/Textualize/rich) — terminal interface and live dashboard.
-- [keyboard](https://github.com/boppreh/keyboard) — keyboard input handling.
+PC Monitor uses the following default thresholds for CPU, RAM, and storage usage:
+
+| Status | Usage |
+| --- | --- |
+| `OK` | Below 80% |
+| `WARNING` | 80% to below 95% |
+| `CRITICAL` | 95% or higher |
+| `UNKNOWN` | Required usage data is unavailable |
+
+The overall system status reflects the most severe status reported by the monitored components.
+
+## Screenshot
+
+![PC Monitor dashboard](screenshots/dashboard.png)
 
 ## Requirements
 
 - Python 3.10 or newer
-- Windows, Linux, or another platform supported by the required dependencies.
+- `pip`
+- A terminal that supports the output provided by Rich
 
-Some features and keyboard controls may behave differently depending on the operating system and permissions.
+The project uses `psutil`, `rich`, and `keyboard`. Keyboard handling and access to some system information can vary by operating system and permissions. The project is primarily developed and tested on Windows.
 
 ## Installation
 
-Clone the repository:
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/aleks360944/PC-Monitor-System-Resource-Monitor.git
 cd PC-Monitor-System-Resource-Monitor
 ```
 
-Create and activate a virtual environment (optional but recommended):
+### 2. Create a virtual environment
 
 ```bash
 python -m venv .venv
 ```
 
-On Windows PowerShell:
+Activate it in Windows PowerShell:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 ```
 
-Install the dependencies:
+On macOS or Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+### 3. Install dependencies
 
 ```bash
 python -m pip install -r requirements.txt
 ```
-## Screenshot
-
-![PC Monitor dashboard](screenshots/dashboard.png)
 
 ## Usage
 
-Run the application:
+Start the application from the project directory:
 
 ```bash
 python main.py
 ```
 
-The dashboard will display your system information and update continuously.
+The dashboard will open in the terminal and refresh its system information while running. Press `Q` to exit. You can also use `Ctrl+C` in the terminal to interrupt the application.
 
-Press `Q` to exit.
-
-## Project Structure
+## Project structure
 
 ```text
-PC-Monitor/
-├── main.py          # Application entry point
-├── ui.py            # Terminal dashboard and graphs
-├── test_cpu.py      # CPU information
-├── test_ram.py      # Memory information
-├── test_disk.py     # Storage information
-├── test_net.py      # Network information
-├── requirements.txt # Python dependencies
-├── .gitignore       # Git exclusions
-└── README.md        # Project documentation
+PC-Monitor-System-Resource-Monitor/
+├── screenshots/
+│   └── dashboard.png       # Dashboard screenshot
+├── cpu_monitor.py          # CPU information and usage
+├── disk_monitor.py         # Storage information
+├── health_checker.py       # CPU, RAM, and storage health checks
+├── main.py                 # Application entry point
+├── network_monitor.py      # Network interface information
+├── ram_monitor.py          # Memory information and usage
+├── ui.py                   # Terminal dashboard and graphs
+├── requirements.txt        # Python dependencies
+├── LICENSE                 # MIT License
+└── README.md               # Project documentation
 ```
 
-## Project Goals
+## Technologies
 
-This project was created as a practical Python learning project to explore system monitoring, modular application design, terminal interfaces, and working with hardware-related information.
+- [Python](https://www.python.org/) — application logic
+- [psutil](https://github.com/giampaolo/psutil) — system and process utilities
+- [Rich](https://github.com/Textualize/rich) — terminal dashboard and live display
+- [keyboard](https://github.com/boppreh/keyboard) — keyboard input handling
 
-Future improvements may include hardware temperature monitoring, disk health diagnostics, and a standalone Windows executable.
+## Project purpose
+
+PC Monitor is a practical learning project focused on Python, modular code organization, system resource monitoring, terminal interfaces, and Git-based development.
 
 ## License
 
-No license has been specified yet. All rights reserved by default until a license is added.
+This project is licensed under the [MIT License](LICENSE).
