@@ -306,7 +306,7 @@ class PCMonitor(App):
         """Update existing widgets without rebuilding the layout."""
         self._set_text(
             "#time-block",
-            f"{datetime.now():%Y-%m-%d %H:%M:%S}\nв—Џ LIVE",
+            f"{datetime.now():%Y-%m-%d %H:%M:%S}\n🟢 LIVE",
         )
 
         cpu_usage = None
