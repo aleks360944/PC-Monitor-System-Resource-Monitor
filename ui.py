@@ -58,7 +58,7 @@ def _health_summary(results) -> tuple[str, str]:
 
 def _format_health(results) -> str:
     status, description = _health_summary(results)
-    lines = [f"в—Џ {status}  {description}", "", "COMPONENT             STATUS      DIAGNOSTIC"]
+    lines = [f"● {status}  {description}", "", "COMPONENT             STATUS      DIAGNOSTIC"]
     for item in results:
         component = str(item.get("component", "Unknown"))[:20]
         level = str(item.get("level", "UNKNOWN"))
