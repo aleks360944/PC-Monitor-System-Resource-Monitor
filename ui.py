@@ -35,7 +35,7 @@ def _sparkline(values, width=48) -> str:
     if not values:
         return "Collecting samples..."
     # ASCII-only characters avoid missing-glyph boxes in Windows terminal fonts.
-    levels = "▂▃▄▅▆▇█"
+    levels = "⠤⠶⠿"
     result = []
     for value in list(values)[-width:]:
         value = max(0.0, min(100.0, float(value)))
