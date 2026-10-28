@@ -1,3 +1,4 @@
 ﻿psutil
 rich
 keyboard
+textual

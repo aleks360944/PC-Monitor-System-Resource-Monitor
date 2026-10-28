@@ -1,30 +1,18 @@
 # PC Monitor
 
-A lightweight, terminal-based system resource monitor written in Python. PC Monitor displays live system information in a dashboard powered by [Rich](https://github.com/Textualize/rich).
+A lightweight system resource monitor built with Python and Textual. PC Monitor provides a live terminal dashboard for monitoring CPU, RAM, storage, network interfaces, and GPU telemetry.
 
 ## Features
 
-- **CPU monitoring** — processor information and current CPU usage.
-- **RAM monitoring** — total, available, and used memory.
-- **Storage monitoring** — disk capacity, free space, and usage for detected volumes.
-- **Network information** — available network interfaces, IP and MAC addresses, and connection details.
-- **Live terminal dashboard** — system information is refreshed while the application is running.
-- **Usage history** — live CPU and RAM graphs.
-- **System health checks** — identifies normal, warning, critical, and unavailable readings for CPU, RAM, and storage.
-- **Keyboard controls** — press `Q` to exit the dashboard.
-
-### Health status thresholds
-
-PC Monitor uses the following default thresholds for CPU, RAM, and storage usage:
-
-| Status | Usage |
-| --- | --- |
-| `OK` | Below 80% |
-| `WARNING` | 80% to below 95% |
-| `CRITICAL` | 95% or higher |
-| `UNKNOWN` | Required usage data is unavailable |
-
-The overall system status reflects the most severe status reported by the monitored components.
+- **CPU monitoring** — processor model, physical and logical core counts, and current usage.
+- **Memory monitoring** — total, available, and used RAM.
+- **Storage monitoring** — detected volumes, capacity, free space, and usage.
+- **Network monitoring** — network interfaces, connection status, IP addresses, and MAC addresses.
+- **GPU monitoring** — GPU utilization, VRAM usage, temperature, and clock speeds, when supported by `hw-smi`.
+- **Live dashboard** — automatically refreshed terminal interface built with Textual.
+- **Usage history** — CPU and RAM history graphs.
+- **System health checks** — OK, WARNING, CRITICAL, and UNKNOWN statuses for CPU, RAM, and storage.
+- **Keyboard controls** — press `Q` or `Esc` to exit the dashboard.
 
 ## Screenshot
 
@@ -32,84 +20,98 @@ The overall system status reflects the most severe status reported by the monito
 
 ## Requirements
 
-- Python 3.10 or newer
-- `pip`
-- A terminal that supports the output provided by Rich
+- Windows 10 or newer recommended.
+- Python 3.10 or newer.
+- `pip`.
+- A terminal compatible with Textual.
+- Administrator privileges for the current hardware-monitoring startup workflow.
 
-The project uses `psutil`, `rich`, and `keyboard`. Keyboard handling and access to some system information can vary by operating system and permissions. The project is primarily developed and tested on Windows.
+GPU telemetry depends on the bundled `hw-smi.exe` utility and compatible hardware and drivers. If GPU data is unavailable, some readings may be displayed as `N/S`.
 
 ## Installation
 
 ### 1. Clone the repository
 
-```bash
+```powershell
 git clone https://github.com/aleks360944/PC-Monitor-System-Resource-Monitor.git
 cd PC-Monitor-System-Resource-Monitor
 ```
 
 ### 2. Create a virtual environment
 
-```bash
-python -m venv .venv
-```
-
-Activate it in Windows PowerShell:
-
 ```powershell
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
-
-On macOS or Linux:
-
-```bash
-source .venv/bin/activate
 ```
 
 ### 3. Install dependencies
 
-```bash
+```powershell
 python -m pip install -r requirements.txt
 ```
 
-## Usage
+### 4. Run PC Monitor
 
-Start the application from the project directory:
-
-```bash
+```powershell
 python main.py
 ```
 
-The dashboard will open in the terminal and refresh its system information while running. Press `Q` to exit. You can also use `Ctrl+C` in the terminal to interrupt the application.
+The application requests administrator privileges on Windows as part of its current startup workflow. Approve the prompt if you want to continue.
 
-## Project structure
+Press `Q` or `Esc` to exit the dashboard. You can also use `Ctrl+C` in the terminal.
+
+## GPU Monitoring
+
+PC Monitor uses [hw-smi](https://github.com/ProjectPhysX/hw-smi) by ProjectPhysX to collect GPU telemetry.
+
+The application starts `hw-smi.exe` with logging enabled and reads its generated log files to obtain available GPU readings. The utility is stopped when the dashboard closes.
+
+If GPU readings are unavailable, check that:
+
+- `hw-smi.exe` is present in the expected application directory.
+- Your GPU and drivers are supported by `hw-smi`.
+- The utility can start and generate a log file.
+
+See [`third_party/hw-smi/LICENSE.md`](third_party/hw-smi/LICENSE.md) for the third-party license. The original utility is not authored by the PC Monitor project.
+
+## Project Structure
 
 ```text
 PC-Monitor-System-Resource-Monitor/
 ├── screenshots/
-│   └── dashboard.png       # Dashboard screenshot
-├── cpu_monitor.py          # CPU information and usage
-├── disk_monitor.py         # Storage information
-├── health_checker.py       # CPU, RAM, and storage health checks
-├── main.py                 # Application entry point
-├── network_monitor.py      # Network interface information
-├── ram_monitor.py          # Memory information and usage
-├── ui.py                   # Terminal dashboard and graphs
-├── requirements.txt        # Python dependencies
-├── LICENSE                 # MIT License
-└── README.md               # Project documentation
+│   └── dashboard.png
+├── third_party/
+│   └── hw-smi/
+│       └── LICENSE.md
+├── cpu_monitor.py
+├── disk_monitor.py
+├── gpu_monitor.py
+├── health_checker.py
+├── hw-smi.exe
+├── main.py
+├── network_monitor.py
+├── ram_monitor.py
+├── ui.py
+├── requirements.txt
+├── LICENSE
+└── README.md
 ```
 
 ## Technologies
 
-- [Python](https://www.python.org/) — application logic
-- [psutil](https://github.com/giampaolo/psutil) — system and process utilities
-- [Rich](https://github.com/Textualize/rich) — terminal dashboard and live display
-- [keyboard](https://github.com/boppreh/keyboard) — keyboard input handling
-
-## Project purpose
-
-PC Monitor is a practical learning project focused on Python, modular code organization, system resource monitoring, terminal interfaces, and Git-based development.
+- [Python](https://www.python.org/) — application logic.
+- [Textual](https://github.com/Textualize/textual) — terminal dashboard framework.
+- [Rich](https://github.com/Textualize/rich) — terminal rendering.
+- [psutil](https://github.com/giampaolo/psutil) — system resource information.
+- [keyboard](https://github.com/boppreh/keyboard) — keyboard input handling.
+- [hw-smi](https://github.com/ProjectPhysX/hw-smi) — GPU telemetry.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+PC Monitor's own source code is licensed under the MIT License. See [`LICENSE`](LICENSE) for details.
+
+Third-party components retain their respective licenses. In particular, `hw-smi` is distributed under the terms in [`third_party/hw-smi/LICENSE.md`](third_party/hw-smi/LICENSE.md).
+
+## Project Goals
+
+PC Monitor is a practical Python project focused on system monitoring, modular code organization, terminal interfaces, hardware telemetry, and Git-based development.
