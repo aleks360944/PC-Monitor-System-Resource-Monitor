@@ -35,7 +35,7 @@ def _sparkline(values, width=48) -> str:
     if not values:
         return "Collecting samples..."
     # ASCII-only characters avoid missing-glyph boxes in Windows terminal fonts.
-    levels = "вЈЂвЈ¤вЈ¶вЈї"
+    levels = "▂▃▄▅▆▇█"
     result = []
     for value in list(values)[-width:]:
         value = max(0.0, min(100.0, float(value)))
@@ -292,7 +292,7 @@ class PCMonitor(App):
                 yield Static("GPU DETAILS", classes="panel-title", id="gpu-title")
                 yield Static("Loading GPU data...", id="gpu-content")
 
-        yield Static("ctrl + Q     вЂў     History: last 60 seconds", id="footer")
+        yield Static("ctrl + Q     •     History: last 60 seconds", id="footer")
 
     def on_mount(self) -> None:
         psutil.cpu_percent(interval=None)
