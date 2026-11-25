@@ -24,7 +24,7 @@ A lightweight system resource monitor built with Python and Textual. PC Monitor 
 - Python 3.10 or newer.
 - `pip`.
 - A terminal compatible with Textual.
-- Administrator privileges for the current hardware-monitoring startup workflow.
+- Administrator privileges are not required. GPU telemetry may be unavailable on systems where `hw-smi` cannot access the GPU.
 
 GPU telemetry depends on the bundled `hw-smi.exe` utility and compatible hardware and drivers. If GPU data is unavailable, some readings may be displayed as `N/S`.
 
@@ -56,7 +56,7 @@ python -m pip install -r requirements.txt
 python main.py
 ```
 
-The application requests administrator privileges on Windows as part of its current startup workflow. Approve the prompt if you want to continue.
+The dashboard starts without an administrator prompt. GPU telemetry is optional; CPU, memory, storage, and network monitoring remain available if `hw-smi` cannot start.
 
 Press `Q` or `Esc` to exit the dashboard. You can also use `Ctrl+C` in the terminal.
 
@@ -64,7 +64,7 @@ Press `Q` or `Esc` to exit the dashboard. You can also use `Ctrl+C` in the termi
 
 PC Monitor uses [hw-smi](https://github.com/ProjectPhysX/hw-smi) by ProjectPhysX to collect GPU telemetry.
 
-The application starts `hw-smi.exe` with logging enabled and reads its generated log files to obtain available GPU readings. The utility is stopped when the dashboard closes.
+The application starts `hw-smi.exe` with logging enabled and reads only newly appended log data for GPU readings. The utility is stopped when the dashboard closes. Data collection runs outside the UI thread so a slow device query does not freeze the dashboard.
 
 If GPU readings are unavailable, check that:
 
