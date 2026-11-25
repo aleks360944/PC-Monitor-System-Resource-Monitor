@@ -1,5 +1,6 @@
 import csv
 from datetime import datetime
+import math
 from pathlib import Path
 import threading
 import time
@@ -9,7 +10,27 @@ def to_number(value):
     value = value.strip()
     if value in {"", "?"}:
         return None
-    return float(value)
+    number = float(value)
+    return number if math.isfinite(number) else None
+
+
+def parse_gpu_csv_line(line):
+    """Parse one hw-smi CSV line; return None for malformed or incomplete rows."""
+    try:
+        row = next(csv.reader([line.decode("utf-8")], skipinitialspace=True))
+        datetime.strptime(row[0].strip(), "%Y-%m-%d %H:%M:%S.%f")
+        if len(row) < 26:
+            return None
+        values = {
+            "gpu_usage": to_number(row[18]),
+            "vram_used_mb": to_number(row[20]),
+            "temperature": to_number(row[21]),
+            "core_clock_mhz": to_number(row[24]),
+            "memory_clock_mhz": to_number(row[25]),
+        }
+        return {key: value if value is not None else "N/S" for key, value in values.items()}
+    except (UnicodeDecodeError, ValueError, IndexError, csv.Error, AttributeError):
+        return None
 
 
 class GPULogReader:
@@ -51,21 +72,9 @@ class GPULogReader:
         return path
 
     def _parse_line(self, line):
-        try:
-            row = next(csv.reader([line.decode("utf-8")], skipinitialspace=True))
-            datetime.strptime(row[0].strip(), "%Y-%m-%d %H:%M:%S.%f")
-            if len(row) < 26:
-                return
-            values = {
-                "gpu_usage": to_number(row[18]),
-                "vram_used_mb": to_number(row[20]),
-                "temperature": to_number(row[21]),
-                "core_clock_mhz": to_number(row[24]),
-                "memory_clock_mhz": to_number(row[25]),
-            }
-            self._record = {key: value if value is not None else "N/S" for key, value in values.items()}
-        except (UnicodeDecodeError, ValueError, IndexError, csv.Error):
-            return
+        record = parse_gpu_csv_line(line)
+        if record is not None:
+            self._record = record
 
     def get_data(self):
         with self._lock:
@@ -75,10 +84,13 @@ class GPULogReader:
                 return self._record.copy()
             try:
                 with path.open("rb") as file:
+                    if file.seek(0, 2) < self._offset:
+                        self._offset = 0
+                        self._partial_line = b""
                     file.seek(self._offset)
                     chunk = file.read()
                     self._offset = file.tell()
-            except OSError:
+            except (OSError, ValueError):
                 return self._record.copy()
 
             lines = (self._partial_line + chunk).splitlines(keepends=True)
