@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 from collections import deque
 from datetime import datetime
-import time
 
-import psutil
 from textual.app import App, ComposeResult
 from textual.containers import Grid, Horizontal, Vertical
 from textual.widgets import Static
@@ -12,6 +11,7 @@ from textual.widgets import Static
 from cpu_monitor import get_cpu_data
 from ram_monitor import get_ram_data
 from disk_monitor import get_storage_list
+from network_monitor import network_info
 from health_checker import check_cpu, check_ram, check_storage
 
 try:
@@ -67,61 +67,41 @@ def _format_health(results) -> str:
     return "\n".join(lines)
 
 
-def _format_storage() -> str:
-    try:
-        disks = get_storage_list()
-        if not disks:
-            return "No storage devices found."
-        lines = []
-        for disk in disks:
-            lines.append(
-                f"{disk.get('device', 'Unknown')} ({disk.get('mountpoint', '?')})\n"
-                f"  Used: {disk.get('usage', '?')}%   "
-                f"Free: {disk.get('free_gb', '?')} GB   "
-                f"Total: {disk.get('total_gb', '?')} GB"
-            )
-        return "\n\n".join(lines)
-    except Exception as exc:
-        return f"Unable to collect storage data: {type(exc).__name__}: {exc}"
+def _format_storage(disks) -> str:
+    if not disks:
+        return "No storage devices found."
+    return "\n\n".join(
+        f"{disk.get('device', 'Unknown')} ({disk.get('mountpoint', '?')})\n"
+        f"  Used: {disk.get('usage', '?')}%   "
+        f"Free: {disk.get('free_gb', '?')} GB   "
+        f"Total: {disk.get('total_gb', '?')} GB"
+        for disk in disks
+    )
 
 
-def _format_network() -> str:
-    """Render network interfaces using psutil directly."""
-    try:
-        addresses = psutil.net_if_addrs()
-        stats = psutil.net_if_stats()
-        lines = []
-        for name, addrs in addresses.items():
-            status = stats.get(name)
-            state = "UP" if status and status.isup else "DOWN"
-            speed = status.speed if status else 0
-            lines.append(f"{name}  [{state}]  {speed} Mbps")
-            for addr in addrs:
-                if addr.family == psutil.AF_LINK:
-                    lines.append(f"  MAC: {addr.address}")
-                elif getattr(addr.family, "name", "") == "AF_INET" or addr.family == 2:
-                    lines.append(f"  IPv4: {addr.address}  Mask: {addr.netmask}")
-                elif getattr(addr.family, "name", "") == "AF_INET6" or addr.family == 23:
-                    lines.append(f"  IPv6: {addr.address}")
-        return "\n".join(lines) if lines else "No network interfaces found."
-    except Exception as exc:
-        return f"Unable to collect network data: {type(exc).__name__}: {exc}"
+def _format_network(interfaces) -> str:
+    if not interfaces:
+        return "No network interfaces found."
+    lines = []
+    for interface in interfaces:
+        state = "UP" if interface.get("is_up") else "DOWN"
+        lines.append(f"{interface.get('name', 'Unknown')}  [{state}]  {interface.get('speed_mbps', 0)} Mbps")
+        lines.extend(f"  IPv4: {addr['address']}  Mask: {addr.get('netmask')}" for addr in interface.get("ipv4", []))
+        lines.extend(f"  IPv6: {addr}" for addr in interface.get("ipv6", []))
+        lines.extend(f"  MAC: {addr}" for addr in interface.get("mac", []))
+    return "\n".join(lines)
 
 
-def _format_gpu() -> str:
-    if get_gpu_data is None:
+def _format_gpu(data) -> str:
+    if data is None:
         return "GPU monitor is unavailable."
-    try:
-        data = get_gpu_data()
-        return (
-            f"GPU usage:       {_format_number(data.get('gpu_usage'), '%')}\n"
-            f"VRAM used:       {_format_number(data.get('vram_used_mb'), ' MB')}\n"
-            f"Temperature:     {_format_number(data.get('temperature'), ' В°C')}\n"
-            f"Core clock:      {_format_number(data.get('core_clock_mhz'), ' MHz')}\n"
-            f"Memory clock:    {_format_number(data.get('memory_clock_mhz'), ' MHz')}"
-        )
-    except Exception as exc:
-        return f"Unable to collect GPU data: {type(exc).__name__}: {exc}"
+    return (
+        f"GPU usage:       {_format_number(data.get('gpu_usage'), '%')}\n"
+        f"VRAM used:       {_format_number(data.get('vram_used_mb'), ' MB')}\n"
+        f"Temperature:     {_format_number(data.get('temperature'), ' °C')}\n"
+        f"Core clock:      {_format_number(data.get('core_clock_mhz'), ' MHz')}\n"
+        f"Memory clock:    {_format_number(data.get('memory_clock_mhz'), ' MHz')}"
+    )
 
 
 class PCMonitor(App):
@@ -247,16 +227,15 @@ class PCMonitor(App):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        # Keep compatibility with the existing main.py entry point.
-        self.cpu_fn = cpu_fn
-        self.ram_fn = ram_fn
-        self.disk_fn = disk_fn
-        self.network_fn = network_fn
-        self.gpu_fn = gpu_fn
+        self.cpu_fn = cpu_fn or get_cpu_data
+        self.ram_fn = ram_fn or get_ram_data
+        self.disk_fn = disk_fn or get_storage_list
+        self.network_fn = network_fn or network_info
+        self.gpu_fn = gpu_fn or get_gpu_data
         self.cpu_history = deque(maxlen=HISTORY_SIZE)
         self.ram_history = deque(maxlen=HISTORY_SIZE)
         self._last_health_results = []
-        self._last_health_refresh = 0.0
+        self._update_running = False
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="custom-header"):
@@ -294,25 +273,59 @@ class PCMonitor(App):
 
         yield Static("ctrl + Q     •     History: last 60 seconds", id="footer")
 
-    def on_mount(self) -> None:
-        psutil.cpu_percent(interval=None)
-        self.update_dashboard()
+    async def on_mount(self) -> None:
+        await self.update_dashboard()
         self.set_interval(REFRESH_INTERVAL, self.update_dashboard)
 
     def _set_text(self, selector: str, value: str) -> None:
         self.query_one(selector, Static).update(value)
 
-    def update_dashboard(self) -> None:
-        """Update existing widgets without rebuilding the layout."""
+    def _collect_data(self):
+        """Run every potentially slow source away from Textual's UI thread."""
+        data = {}
+        errors = {}
+        sources = {
+            "cpu": (self.cpu_fn, {"usage": None}),
+            "ram": (self.ram_fn, {"usage": None}),
+            "storage": (self.disk_fn, []),
+            "network": (self.network_fn, []),
+            "gpu": (self.gpu_fn, None),
+        }
+        for name, (source, fallback) in sources.items():
+            if source is None:
+                data[name] = fallback
+                continue
+            try:
+                data[name] = source()
+            except Exception as exc:
+                data[name] = fallback
+                errors[name] = f"{type(exc).__name__}: {exc}"
+        return data, errors
+
+    async def update_dashboard(self) -> None:
+        """Collect samples on a worker thread and only render them on the UI thread."""
+        if self._update_running:
+            return
+        self._update_running = True
         self._set_text(
             "#time-block",
             f"{datetime.now():%Y-%m-%d %H:%M:%S}\n🟢 LIVE",
         )
-
-        cpu_usage = None
-        ram_usage = None
         try:
-            cpu_data = get_cpu_data()
+            data, errors = await asyncio.to_thread(self._collect_data)
+        finally:
+            self._update_running = False
+
+        cpu_data = data["cpu"]
+        ram_data = data["ram"]
+        storage_data = data["storage"]
+        cpu_usage = cpu_data.get("usage") if isinstance(cpu_data, dict) else None
+        ram_usage = ram_data.get("usage") if isinstance(ram_data, dict) else None
+        if errors.get("cpu"):
+            cpu_text = f"Unable to collect CPU data: {errors['cpu']}"
+        elif not isinstance(cpu_data, dict):
+            cpu_text = "CPU data source returned an invalid result."
+        else:
             cpu_usage = cpu_data.get("usage")
             if isinstance(cpu_usage, (int, float)):
                 self.cpu_history.append(float(cpu_usage))
@@ -322,11 +335,11 @@ class PCMonitor(App):
                 f"Logical cores: {cpu_data.get('logical_cores', 'N/S')}\n"
                 f"Usage: {_format_number(cpu_usage, '%')}"
             )
-        except Exception as exc:
-            cpu_text = f"Unable to collect CPU data: {type(exc).__name__}: {exc}"
-
-        try:
-            ram_data = get_ram_data()
+        if errors.get("ram"):
+            ram_text = f"Unable to collect memory data: {errors['ram']}"
+        elif not isinstance(ram_data, dict):
+            ram_text = "Memory data source returned an invalid result."
+        else:
             ram_usage = ram_data.get("usage")
             if isinstance(ram_usage, (int, float)):
                 self.ram_history.append(float(ram_usage))
@@ -335,9 +348,6 @@ class PCMonitor(App):
                 f"Available: {_format_number(ram_data.get('available_gb'), ' GB')}\n"
                 f"In use: {_format_number(ram_usage, '%')}"
             )
-        except Exception as exc:
-            ram_text = f"Unable to collect memory data: {type(exc).__name__}: {exc}"
-
         self._set_text("#cpu-content", cpu_text)
         self._set_text("#ram-content", ram_text)
         self._set_text(
@@ -348,22 +358,38 @@ class PCMonitor(App):
             "#ram-graph-content",
             f"{_format_number(ram_usage, '%')}\n{_sparkline(self.ram_history)}",
         )
-        self._set_text("#storage-content", _format_storage())
-        self._set_text("#network-content", _format_network())
-        self._set_text("#gpu-content", _format_gpu())
+        self._set_text(
+            "#storage-content",
+            f"Unable to collect storage data: {errors['storage']}" if errors.get("storage") else _format_storage(storage_data),
+        )
+        self._set_text(
+            "#network-content",
+            f"Unable to collect network data: {errors['network']}" if errors.get("network") else _format_network(data["network"]),
+        )
+        self._set_text(
+            "#gpu-content",
+            f"Unable to collect GPU data: {errors['gpu']}" if errors.get("gpu") else _format_gpu(data["gpu"]),
+        )
 
-        # Health checks run every three seconds to avoid unnecessary work.
-        monotonic_now = time.monotonic()
-        if monotonic_now - self._last_health_refresh >= 3.0:
-            try:
-                self._last_health_results = check_cpu() + check_ram() + check_storage()
-            except Exception as exc:
-                self._last_health_results = [{
-                    "component": "System Health",
-                    "level": "UNKNOWN",
-                    "message": f"Unable to run checks: {type(exc).__name__}: {exc}",
-                }]
-            self._last_health_refresh = monotonic_now
+        try:
+            self._last_health_results = (
+                check_cpu(cpu_data if isinstance(cpu_data, dict) else {"usage": None})
+                + check_ram(ram_data if isinstance(ram_data, dict) else {"usage": None})
+                + check_storage(storage_data if isinstance(storage_data, list) else [])
+            )
+            for component, key in (("CPU", "cpu"), ("RAM", "ram"), ("Storage", "storage")):
+                if errors.get(key):
+                    self._last_health_results.append({
+                        "component": component,
+                        "level": "UNKNOWN",
+                        "message": f"Unable to collect data: {errors[key]}",
+                    })
+        except Exception as exc:
+            self._last_health_results = [{
+                "component": "System Health",
+                "level": "UNKNOWN",
+                "message": f"Unable to run checks: {type(exc).__name__}: {exc}",
+            }]
         self._set_text("#health-content", _format_health(self._last_health_results))
 
 
